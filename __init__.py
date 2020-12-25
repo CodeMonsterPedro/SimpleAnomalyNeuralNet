@@ -2,19 +2,15 @@ import sys
 import random
 import pandas as pd
 import numpy as np
-from sklearn.model_selection import train_test_split 
-from sklearn.linear_model import LinearRegression, LogisticRegression
-from sklearn.neighbors import KNeighborsClassifier
 from sklearn import metrics
 from datetime import date
-from fpdf import FPDF, HTMLMixin
 from PySide2.QtWidgets import QApplication, QMainWindow, QFileDialog, QListWidgetItem, QTableWidgetItem
 from UIs.mainwindow import Ui_MainWindow
 from StatDialog import StatDialog
 from myRow import MyRow
+import tensorflow as tf
+from tensorflow import keras
 
-class MyFPDF(FPDF, HTMLMixin):
-    pass
 '''
 
 2. Выбрать 3-4 разных типа моделей искусственной нейронной сети (сверточная, рекурсивная, перцептрон,…..)
@@ -32,21 +28,6 @@ class MyFPDF(FPDF, HTMLMixin):
 6. Уникальность 70% по етхт.
 
 
-
-Тематика машинного обучения (МО). Требуется реализовать веб-приложение сравнения возможностей разных алгоритмов МО (минимум 3) 
-на примере решения задачи классификации или регрессии. Библиотеки skilearn, numpy, pandas, matplotlib.
-Требуемый функционал:
-1. Поддержка возможности загрузки входных данных из файла формата csv.**
-2. Отображение импортированных данных в таблице с возможностями редактирования и сортировки**
-3. Расчет и вывод в другой таблице статистических показателей данных (по примеру, как это выводится в дедукторе или рапидмайнере)
-, среднее, медиана, мода, максимум, минимум…!**
-4. Возможность выбора нужного алгоритма МО и его конфигурации (выбор параметров алгоритма, у каждого есть свои входные, так называемые, гиперпараметры)**
-5. Возможность выбора метрики оценки качества модели (например, MSE, подробнее тут https://habr.com/ru/company/ods/blog/328372/)**
-6. Возможность разбития импортированной выборки на входную и тестовую.**
-7. Возможность запуска алгоритма и построения графика его ошибки + выдачи данных в текстовом виде !
-(в файл или текстовое поле) (7 и 8 - После окончания работы алгоритма появляется диалог который все показывает + генерит файл отчет)
-8. Возможность сохранения полученных данных в виде отчета в файл, хотя бы текстовый.!
-
 '''
 
 
@@ -56,121 +37,77 @@ class Base(QMainWindow):
         QMainWindow.__init__(self)
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
-        self._hiperNames = []
-        self._X = []
-        self._y = []
+        self._NetBuild = []
+        self._NetTree = []
+        self._values = []
+        self._labels = []
         self._dataSet = []
-        self._train_X = []
-        self._train_y = []
-        self._test_X = []
-        self._test_y = []
+        self._train_values = []
+        self._train_labels = []
+        self._test_values = []
+        self._test_labels = []
         self._predictions = []
         self._method = []
         self._metric = []
+        self._loss = 'sparse_categorical_crossentropy'
+        self._optimizer = 'adam'
         self._statDialog = StatDialog()
         self._scoreResult = 0
         self._metricResult = 0
-        self._isSplit = True
         self._isStatSaved = False
         self._isFileParsed = False
         self._classMetricLabels = ('accuracy', 'balanced_accuracy', 'average_precision', 'neg_brier_score', 'f1', 'precision', 'precision', 'recall', 'jaccard')
-        self._regressionMetricLabels = ('explained_variance', 'max_error', 'neg_mean_absolute_error', 'neg_mean_squared_error', 'neg_median_absolute_error', 'r2', 'neg_mean_poisson_deviance', 'neg_mean_gamma_deviance')
-        self.ui.cb_method.addItems(('Linear regression', 'Logistic regression', 'K-nearest neighbors'))
+        self.ui.cb_method.addItems(('Сверточная', 'Перцептрон', 'Рекуррентная'))
         self.ui.cb_method.currentIndexChanged.connect(self._setMethod)
-        self.ui.cb_metric.addItems(self._regressionMetricLabels)
+        self.ui.cb_metric.addItems(self._classMetricLabels)
         self.ui.cb_metric.currentIndexChanged.connect(self._setMetric)
-        self.ui.cb_parametr1.currentIndexChanged.connect(self._setParametr1)
-        self.ui.cb_parametr2.currentIndexChanged.connect(self._setParametr2)
-        self.ui.lw_parametrs.itemChanged.connect(self._updateHiperparamets)
-        self.ui.chb_twice.stateChanged.connect(self._updateTwiceData)
-        self.ui.spb_k_count.editingFinished.connect(self._setK)
         self.ui.btn_setFile.clicked.connect(self._parseFile)
         self.ui.btn_start.clicked.connect(self._startTraining)
         self.ui.btn_stat.clicked.connect(self._showStatistic)
+        self.ui.btn_addlayout.clicked.connect(self._addNewLayout)
+        self.ui.btn_dellayout.clicked.connect(self._delLayout)
+        self.ui.btn_setNeuralnet.clicked.connect(self._importNet)
+        self.ui.ln_id.textChanged.connect(self._idChanged)
 
     def _startTraining(self):
         self._isStatSaved = False
         print('start train')
-        self._train_X, self._test_X, self._train_y, self._test_y = train_test_split(self._X, self._y, test_size=0.25, random_state=42)
-        self._method.fit(self._train_X, self._train_y)
-        self._predictions = self._method.predict(self._test_X)
-        print(self._predictions)
+        if self._isFileParsed:
+            self._train_values, self._train_labels, self._test_values, self._test_labels = train_test_split(self._dataSet, self._labels, test_size=0.15, random_state=42)
+        self._method.fit(self._train_values, self._train_labels, epochs=10)
+        test_loss, test_acc = model.evaluate(self._test_values,  self._test_labels, verbose=2)
         print('stop train')
-        self._scoreResult = self._method.score(self._test_X, self._test_y)
+        self._predictions = self._method.predict(self._test_values)
+        print(self._predictions)
+        self._scoreResult = self._method.score(self._test_values, self._test_labels)
         print(self._scoreResult)
-        self._metricResult = self._metric(self._test_y, self._predictions)
+        self._metricResult = self._metric(self._test_labels, self._predictions)
         print(self._metricResult)
-        self._statDialog.setData(self._train_X, self._train_y, self._test_X, self._test_y, self._predictions)
-        self._statDialog.show()
-        if not self._isStatSaved:
-            self._statDialog.save()
-            self._isStatSaved = True
-        self._makeFile()
-
-
-    def _updateTwiceData(self):
-        if self.ui.chb_twice.isChecked():
-            self._isSplit = True
-        else:
-            self._isSplit = False
+        #self._statDialog.setData(self._train_values, self._train_labels, self._test_values, self._test_labels, self._predictions)
+        #self._statDialog.show()
+        #if not self._isStatSaved:
+        #    self._statDialog.save()
+        #    self._isStatSaved = True
+        #self._makeFile()
 
     def _setMethod(self):
+        for i in range(self.ui.tbw_net_tree.rowCount(), -1, -1):
+            self.ui.tbw_net_tree.removeRow(i)
+        self._NetTree = []
+        self._method = keras.Sequential()
+        self._method.add(keras.layers.Input(shape=(len(self._dataSet[0]),)))
         if self.ui.cb_method.currentIndex() == 0:
-            self._method = LinearRegression()
-            self.ui.cb_metric.clear()
-            self.ui.cb_metric.addItems(self._regressionMetricLabels)
-            self._metric = []
+            self._method.add(keras.layers.Conv2D(32, (3,3), padding='same', activation='relu', input_shape=(28,28,1)))
+            self._method.add(keras.layers.MaxPooling2D((2,2), strides=2))
         elif self.ui.cb_method.currentIndex() == 1:
-            self._method = LogisticRegression()
-            self.ui.cb_metric.clear()
-            self.ui.cb_metric.addItems(self._classMetricLabels)
-            self._metric = []
+            for row in self._NetTree:
+                self._method.add(keras.layers.Dense(row[1], activation='relu'))
         elif self.ui.cb_method.currentIndex() == 2:
             self._method = KNeighborsClassifier(n_neighbors=5)
-            self.ui.cb_metric.clear()
-            self.ui.cb_metric.addItems(self._classMetricLabels)
-            self._metric = []
-
-    def _showStatistic(self):
-        self._statDialog.show()
-        if not self._isStatSaved:
-            self._statDialog.save()
-            self._isStatSaved = True
-
+        self._method.add(keras.layers.Dense(1, activation='softmax'))
+        self._method.compile(optimizer='adam', loss='binary_crossentropy', metrics=self._metric)
 
 # -------------------------------
-    def _setParametr1(self):
-        if self._isFileParsed:
-            if not isinstance(self._y, list):
-                self._X = self._dataSet[self.ui.cb_parametr1.currentText()]
-                self._X = self._X.values
-                self._X = self._X.reshape(-1, 1)
-                print(self._X)
-            else:
-                self._X = self._dataSet[self.ui.cb_parametr1.currentText()]
-                self._X = self._X.values
-                self._X = self._X.reshape(-1, 1)
-                print(self._X)
-
-    def _setParametr2(self):
-        if self._isFileParsed:
-            if not isinstance(self._X, list):
-                self._y = self._dataSet[self.ui.cb_parametr2.currentText()]
-                self._y = self._y.values
-                print(self._y)
-            else:
-                self._y = self._dataSet[self.ui.cb_parametr2.currentText()]
-                self._y = self._y.values
-                print(self._y)
-
-    def _updateHiperparamets(self):
-        self._hiperNames = []
-        for i in range(self.ui.lw_parametrs.count()):
-            item = self.ui.lw_parametrs.item(i)
-            element = self.ui.lw_parametrs.itemWidget(item)
-            if isinstance(element, MyRow) and element.isChecked():
-                self._hiperNames.append(element.getText())
-        print(self._hiperNames)
 
     def _parseFile(self):
         fileInfo = QFileDialog.getOpenFileName()
@@ -183,58 +120,53 @@ class Base(QMainWindow):
         self._dataSet = result
         self._dataSet = self._dataSet.fillna(0)
         self._fillTable()
-        self._setHiperparametrs(self._dataSet.columns)
         self.ui.cb_parametr1.addItems(list(self._dataSet.columns))
         self.ui.cb_parametr2.addItems(list(self._dataSet.columns))
         self._isFileParsed = True
 
-
     def _setMetric(self):
-        if self.ui.cb_method.currentIndex() == 0:
-            if self.ui.cb_metric.currentIndex() == 0:
-                self._metric = metrics.explained_variance_score
-            elif self.ui.cb_metric.currentIndex() == 1:
-                self._metric = metrics.max_error
-            elif self.ui.cb_metric.currentIndex() == 2:
-                self._metric = metrics.mean_absolute_error
-            elif self.ui.cb_metric.currentIndex() == 3:
-                self._metric = metrics.mean_squared_error
-            elif self.ui.cb_metric.currentIndex() == 4:
-                self._metric = metrics.median_absolute_error
-            elif self.ui.cb_metric.currentIndex() == 5:
-                self._metric = metrics.r2_score
-            elif self.ui.cb_metric.currentIndex() == 6:
-                self._metric = metrics.mean_poisson_deviance
-            elif self.ui.cb_metric.currentIndex() == 7:
-                self._metric = metrics.mean_gamma_deviance
-        else:
-            if self.ui.cb_metric.currentIndex() == 0:
-                self._metric = metrics.accuracy_score
-            elif self.ui.cb_metric.currentIndex() == 1:
-                self._metric = metrics.balanced_accuracy_score
-            elif self.ui.cb_metric.currentIndex() == 2:
-                self._metric = metrics.average_precision_score
-            elif self.ui.cb_metric.currentIndex() == 3:
-                self._metric = metrics.brier_score_loss
-            elif self.ui.cb_metric.currentIndex() == 4:
-                self._metric = metrics.f1_score
-            elif self.ui.cb_metric.currentIndex() == 5:
-                self._metric = metrics.precision_score
-            elif self.ui.cb_metric.currentIndex() == 6:
-                self._metric = metrics.recall_score
-            elif self.ui.cb_metric.currentIndex() == 7:
-                self._metric = metrics.jaccard_score
-                
-    def _setK(self):
-        self._method = self._method = KNeighborsClassifier(n_neighbors=int(self.ui.spb_k_count.value()))
+        if self.ui.cb_metric.currentIndex() >= 0 and self.ui.cb_metric.currentIndex() <= 7:
+            self._metric = self._metric.append(self._classMetricLabels[self.ui.cb_metric.currentIndex()])
 
-    def _setHiperparametrs(self, names):
-        for name in names:
-            item = QListWidgetItem(self.ui.lw_parametrs)
-            self.ui.lw_parametrs.addItem(item)
-            row = MyRow(name)
-            item.setSizeHint(row.minimumSizeHint())
-            self.ui.lw_parametrs.setItemWidget(item, row)
+    def _addNewLayout(self):
+        l = [len(self._NetTree), self.ui.spb_neirons.value()]
+        self._NetTree.append(l)
+        self._updateTreeTable()
+
+    def _delLayout(self):
+        self._NetTree.pop(int(self.ui.ln_id.text()))
+        self._updateTreeTable()
+
+    def _importNet(self):
+        pass
+
+    def _idChanged(self):
+        num = int(self.ui.ln_id.text())
+        if num >= len(self._NetTree):
+            self.ui.ln_id.setText(len(self._NetTree) - 1)
+
+    def _updateTreeTable(self):
+        for i in range(self.ui.tbw_net_tree.rowCount(), -1, -1):
+            self.ui.tbw_net_tree.removeRow(i)
+        i = 0
+        j = 0
+        self.ui.tbw_data.setColumnCount(len(self._NetTree[0]))
+        for row in self._NetTree:
+            self.ui.tbw_net_tree.insertRow(i)
+            for item in row:
+                if item == np.nan:
+                    continue
+                else:
+                    self.ui.tbw_net_tree.setItem(i, j, QTableWidgetItem(str(item)))
+                j += 1
+            j = 0
+            i += 1
+
+    def _showStatistic(self):
+        self._statDialog.show()
+        if not self._isStatSaved:
+            self._statDialog.save()
+            self._isStatSaved = True
 
     def _fillTable(self):
         for i in range(self.ui.tbw_data.rowCount(), -1, -1):
@@ -258,13 +190,13 @@ class Base(QMainWindow):
     def _makeFile(self):
         pdf = MyFPDF()
         pdf.add_page()
-        html = '<h1>Data info</h1><table border="1" width="90%"><thead><tr><th width="20%">train_X</th><th  width="20%">train_y</th><th width="20%">test_X</th><th width="20%">test_y</th><th width="20%">self._predictions</th></tr></thead><tbody>'
+        html = '<h1>Data info</h1><table border="1" width="90%"><thead><tr><th width="20%">train_values</th><th  width="20%">train_labels</th><th width="20%">test_values</th><th width="20%">test_labels</th><th width="20%">self._predictions</th></tr></thead><tbody>'
         sum = 0
-        for i in range(len(self._train_X)):
-            if i >= len(self._test_X):
-                html += '<tr><td>{}</td><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>'.format(self._train_X[i], self._train_y[i], 0, 0, 0)
+        for i in range(len(self._train_values)):
+            if i >= len(self._test_values):
+                html += '<tr><td>{}</td><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>'.format(self._train_values[i], self._train_labels[i], 0, 0, 0)
             else:
-                html += '<tr><td>{}</td><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>'.format(self._train_X[i], self._train_y[i], self._test_X[i], self._test_y[i], self._predictions[i])
+                html += '<tr><td>{}</td><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>'.format(self._train_values[i], self._train_labels[i], self._test_values[i], self._test_labels[i], self._predictions[i])
         html += '<tr><td colspan=4 >score answer </td><td>{}</td></tr>'.format(self._scoreResult)
         html += '<tr><td colspan=4 >Metric answer </td><td>{}</td></tr>'.format(self._metricResult)
         html += '</tbody></table>'

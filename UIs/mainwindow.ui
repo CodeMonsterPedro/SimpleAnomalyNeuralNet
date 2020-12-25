@@ -19,8 +19,8 @@
      <rect>
       <x>10</x>
       <y>10</y>
-      <width>1001</width>
-      <height>511</height>
+      <width>1031</width>
+      <height>571</height>
      </rect>
     </property>
    </widget>
@@ -28,7 +28,7 @@
     <property name="geometry">
      <rect>
       <x>220</x>
-      <y>540</y>
+      <y>610</y>
       <width>381</width>
       <height>31</height>
      </rect>
@@ -37,67 +37,57 @@
    <widget class="QPushButton" name="btn_setFile">
     <property name="geometry">
      <rect>
-      <x>100</x>
-      <y>540</y>
-      <width>101</width>
+      <x>80</x>
+      <y>610</y>
+      <width>121</width>
       <height>31</height>
      </rect>
     </property>
     <property name="text">
-     <string>Chsose file</string>
+     <string>Файл данных</string>
     </property>
    </widget>
    <widget class="QPushButton" name="btn_start">
     <property name="geometry">
      <rect>
       <x>500</x>
-      <y>700</y>
+      <y>770</y>
       <width>101</width>
       <height>31</height>
      </rect>
     </property>
     <property name="text">
-     <string>Start</string>
+     <string>Начать</string>
     </property>
    </widget>
    <widget class="QPushButton" name="btn_stat">
     <property name="geometry">
      <rect>
       <x>500</x>
-      <y>640</y>
+      <y>710</y>
       <width>101</width>
       <height>31</height>
      </rect>
     </property>
     <property name="text">
-     <string>Statistic</string>
+     <string>Статистика</string>
     </property>
    </widget>
    <widget class="QComboBox" name="cb_metric">
     <property name="geometry">
      <rect>
       <x>220</x>
-      <y>590</y>
+      <y>660</y>
       <width>381</width>
       <height>31</height>
      </rect>
     </property>
    </widget>
-   <widget class="QComboBox" name="cb_parametr1">
+   <widget class="QComboBox" name="cb_target">
     <property name="geometry">
      <rect>
       <x>660</x>
-      <y>540</y>
-      <width>361</width>
-      <height>31</height>
-     </rect>
-    </property>
-   </widget>
-   <widget class="QComboBox" name="cb_parametr2">
-    <property name="geometry">
-     <rect>
-      <x>660</x>
-      <y>590</y>
+      <y>610</y>
       <width>361</width>
       <height>31</height>
      </rect>
@@ -107,22 +97,22 @@
     <property name="geometry">
      <rect>
       <x>80</x>
-      <y>590</y>
+      <y>660</y>
       <width>121</width>
       <height>31</height>
      </rect>
     </property>
     <property name="text">
-     <string>Chsose neuralnet</string>
+     <string>Файл нейросети</string>
     </property>
    </widget>
    <widget class="QTableWidget" name="tbw_net_tree">
     <property name="geometry">
      <rect>
-      <x>1030</x>
+      <x>1060</x>
       <y>10</y>
-      <width>281</width>
-      <height>511</height>
+      <width>251</width>
+      <height>571</height>
      </rect>
     </property>
    </widget>
@@ -130,7 +120,7 @@
     <property name="geometry">
      <rect>
       <x>1030</x>
-      <y>540</y>
+      <y>610</y>
       <width>111</width>
       <height>31</height>
      </rect>
@@ -143,7 +133,7 @@
     <property name="geometry">
      <rect>
       <x>1030</x>
-      <y>590</y>
+      <y>660</y>
       <width>111</width>
       <height>31</height>
      </rect>
@@ -156,7 +146,7 @@
     <property name="geometry">
      <rect>
       <x>1150</x>
-      <y>590</y>
+      <y>660</y>
       <width>151</width>
       <height>31</height>
      </rect>
@@ -166,7 +156,7 @@
     <property name="geometry">
      <rect>
       <x>1150</x>
-      <y>540</y>
+      <y>610</y>
       <width>151</width>
       <height>31</height>
      </rect>
@@ -178,8 +168,20 @@
      <number>99999</number>
     </property>
    </widget>
+   <widget class="QPushButton" name="btn_build">
+    <property name="geometry">
+     <rect>
+      <x>80</x>
+      <y>770</y>
+      <width>121</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Собрать сеть</string>
+    </property>
+   </widget>
   </widget>
-  <widget class="QStatusBar" name="br_status"/>
  </widget>
  <resources/>
  <connections/>
